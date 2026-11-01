@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="PSI by area for Singapore from NEA (data.gov.sg) and weather for Singapore and ASEAN cities from Open-Meteo.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23E57B35' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='3.5'/%3E%3Cpath d='M3 14h18M5 18h14M8 21.5h8'/%3E%3C/svg%3E">
+<style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Haze Watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Figtree:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one calm column. Singapore tab opens with the dark NEA haze card (map + detail), then weather and outlook cards. ASEAN tab is weather only: summary, selected city, then a grid of cities. */
+:root{
+  --bg:#F3F5F8;
+  --surface:#FFFFFF;
+  --surface-2:#F6F8FB;
+  --line:#E4E8EE;
+  --line-strong:#C6CFDA;
+  --fg:#18212D;
+  --muted:#667386;
+  --accent:#E57B35;
+  --accent-soft:#FDECDD;
+  --accent-ink:#98430F;
+  --shadow:0 1px 2px rgba(24,33,45,.05),0 8px 24px rgba(24,33,45,.04);
+  --font-display:'Sora',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-body:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F141B;--surface:#171D26;--surface-2:#1C2430;--line:#262F3C;--line-strong:#3A4658;
+    --fg:#E7ECF2;--muted:#93A0B3;--accent:#F29A5B;--accent-soft:#33261B;--accent-ink:#F6B684;
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F141B;--surface:#171D26;--surface-2:#1C2430;--line:#262F3C;--line-strong:#3A4658;
+  --fg:#E7ECF2;--muted:#93A0B3;--accent:#F29A5B;--accent-soft:#33261B;--accent-ink:#F6B684;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.5;font-variant-numeric:tabular-nums}
+button{font-family:inherit;color:inherit}
+h1,h2,p,dl,dd,ul{margin:0}
+.page{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
+.wrap{max-width:1120px;margin:0 auto}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px 24px;flex-wrap:wrap;margin-bottom:44px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:36px;height:36px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+.brand b{font:600 18px var(--font-display);letter-spacing:-.01em}
+.chip{font:600 12px var(--font-body);letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--surface)}
+.controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--muted);font:600 14px var(--font-body);padding:8px 18px;border-radius:999px;cursor:pointer}
+.seg.sm button{font-size:13px;padding:6px 13px}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-ink)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* headings */
+.page-head{margin-bottom:28px}
+h1{font:600 34px/1.15 var(--font-display);letter-spacing:-.02em;text-wrap:balance}
+.sub{color:var(--muted);margin-top:8px}
+.muted{color:var(--muted)}
+h2.sec{font:600 20px var(--font-display);letter-spacing:-.01em}
+.row-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:44px 0 16px}
+.row-head p{color:var(--muted);margin-top:2px}
+
+/* layout */
+.grid{display:grid;gap:20px}
+.g-2{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+.sp{margin-top:20px}
+@media (max-width:860px){.g-2{grid-template-columns:minmax(0,1fr)}}
+
+/* cards */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:var(--shadow);min-width:0}
+@media (max-width:560px){.card{padding:20px}}
+.eyebrow{font:600 12px var(--font-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.card-title{font:600 22px/1.2 var(--font-display);letter-spacing:-.01em;margin-top:6px}
+.card-sub{color:var(--muted);margin-top:4px}
+
+/* weather */
+.wx-main{display:flex;align-items:center;gap:18px;margin-top:22px;flex-wrap:wrap}
+.wx-icon{color:var(--accent);display:grid;place-items:center}
+.wx-temp{font:600 68px/1 var(--font-display);letter-spacing:-.04em}
+.wx-temp small{font-size:22px;color:var(--muted);margin-left:3px;font-weight:500;letter-spacing:0}
+.wx-text{display:flex;flex-direction:column;gap:2px}
+.wx-text b{font-weight:600;font-size:17px}
+.wx-text span{color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 16px;margin-top:30px}
+.stats dt{font:600 12px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stats dd{margin-top:4px;font:600 17px var(--font-body)}
+.stats dd small{font-weight:500;font-size:12px;color:var(--muted)}
+@media (max-width:560px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* outlook */
+.fcs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}
+.fc{display:flex;flex-direction:column;gap:8px;padding:16px;border-radius:14px;background:var(--surface-2)}
+.fc-day{display:flex;align-items:baseline;gap:8px}
+.fc-day b{font-weight:600}
+.fc-day span{color:var(--muted);font-size:13px}
+.fc-ic{color:var(--accent)}
+.fc-t{font:600 17px var(--font-body)}
+.fc-t span{color:var(--muted);font-weight:500}
+.fc-w{font-size:13px;color:var(--muted)}
+
+/* ASEAN */
+.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 28px}
+.sum-city{font:600 20px var(--font-display);letter-spacing:-.01em;margin:6px 0 2px;overflow-wrap:anywhere}
+@media (max-width:700px){.summary{grid-template-columns:minmax(0,1fr)}}
+.cities{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.ccard{display:flex;flex-direction:column;gap:14px;text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:18px;cursor:pointer;box-shadow:var(--shadow);min-width:0}
+.ccard:hover{border-color:var(--line-strong)}
+.ccard[aria-pressed="true"]{border-color:var(--accent)}
+.cc-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.cc-name{font:600 16px var(--font-body);overflow-wrap:anywhere}
+.cc-country{font-size:13px;color:var(--muted)}
+.cc-ic{color:var(--accent);flex:none}
+.cc-mid{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.cc-num{font:600 40px/1 var(--font-display);letter-spacing:-.03em}
+.cc-text{color:var(--muted);font-size:14px}
+.cc-foot{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.cc-foot b{color:var(--fg);font-weight:600}
+
+/* NEA haze card: always dark, matches the reference screenshot */
+.haze{
+  --hz-card:#1B1E22;--hz-inner:#15171B;--hz-label:#1D2025;--hz-line:#2C3036;
+  --hz-fg:#EDEDED;--hz-text:#D6D9DD;--hz-muted:#9AA0A6;--hz-dim:#8A9098;
+  --hz-good:#6CB58F;--hz-mod:#E5BC4A;--hz-unh:#E8735F;--hz-vun:#B98AD8;--hz-haz:#DC607B;
+  background:var(--hz-card);color:var(--hz-fg);border:1px solid var(--hz-line);border-radius:12px;padding:38px;
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;color-scheme:dark;
+}
+@media (max-width:640px){.haze{padding:22px 16px}}
+.hz-eyebrow{font:400 14px/1.3 'JetBrains Mono',ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--hz-muted)}
+.hz-title{font:500 40px/1.1 'Cormorant Garamond',Georgia,serif;margin-top:14px;color:#F0F0F0}
+.hz-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px;margin-top:26px}
+@media (max-width:900px){.hz-grid{grid-template-columns:minmax(0,1fr)}}
+
+.hz-map{position:relative;container-type:inline-size;aspect-ratio:814/556;background:var(--hz-inner);border:1px solid var(--hz-line);border-radius:8px;overflow:hidden}
+.hz-svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hz-reg{fill:color-mix(in srgb,var(--c) 42%,var(--hz-inner));cursor:pointer;transition:fill .15s}
+.hz-reg:hover{fill:color-mix(in srgb,var(--c) 56%,var(--hz-inner))}
+.hz-div{fill:none;stroke:var(--hz-inner);stroke-width:2}
+.hz-geo{position:absolute;font:400 max(8px,1.35cqw)/1 'JetBrains Mono',ui-monospace,Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--hz-dim);pointer-events:none}
+.hz-label{position:absolute;left:calc(var(--x) * 1%);top:calc(var(--y) * 1%);transform:translate(-50%,-50%);width:max(88px,16cqw);
+  display:flex;flex-direction:column;align-items:center;gap:0;padding:max(5px,.9cqw) 4px max(5px,.8cqw);
+  background:var(--hz-label);border:2px solid var(--c);border-radius:7px;cursor:pointer;color:var(--hz-fg);font-family:'Inter',system-ui,sans-serif}
+.hz-label.on{box-shadow:0 0 0 3px var(--hz-inner),0 0 0 5px #E9EBEE}
+.hz-label:focus-visible{outline:2px solid var(--accent);outline-offset:6px}
+.hz-ln{font:400 max(8px,1.25cqw)/1.2 'JetBrains Mono',ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--hz-muted)}
+.hz-lv{font:500 max(24px,5cqw)/1.05 'Cormorant Garamond',Georgia,serif;font-variant-numeric:oldstyle-nums;font-feature-settings:"onum" 1}
+.hz-lb{font:400 max(11px,1.55cqw)/1.2 'Inter',system-ui,sans-serif;color:var(--hz-fg)}
+
+.hz-detail{background:var(--hz-inner);border:1px solid var(--hz-line);border-radius:8px;padding:26px;min-width:0;display:flex;flex-direction:column}
+.hz-area{font:400 13px/1.5 'JetBrains Mono',ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--hz-muted)}
+.hz-now{display:flex;align-items:center;gap:26px;flex-wrap:wrap;margin-top:44px}
+.hz-num{font:500 112px/.9 'Cormorant Garamond',Georgia,serif;letter-spacing:-.02em;font-variant-numeric:oldstyle-nums;font-feature-settings:"onum" 1;color:#F2F2F2}
+.hz-status{display:inline-flex;align-items:center;gap:12px;font:400 19px 'Inter',system-ui,sans-serif;color:var(--hz-fg)}
+.hz-status i{width:12px;height:12px;border-radius:50%;background:var(--c)}
+.hz-bar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;align-items:center;height:15px;margin-top:22px}
+.hz-seg{height:8px;border-radius:4px;background:color-mix(in srgb,var(--c) 32%,var(--hz-inner))}
+.hz-seg.on{height:15px;border-radius:8px;background:var(--c)}
+.hz-ticks{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:12px}
+.hz-ticks span{text-align:right;padding-right:6px;font:400 13px 'JetBrains Mono',ui-monospace,Menlo,monospace;color:var(--hz-muted)}
+.hz-advice{margin-top:26px;font:400 20px/1.6 'Inter',system-ui,sans-serif;color:var(--hz-text);max-width:34em}
+.hz-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 28px;margin-top:auto;padding-top:28px}
+.hz-stats > div{border-top:1px solid var(--hz-line);padding-top:16px}
+.hz-stats dt{font:400 13px 'JetBrains Mono',ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--hz-muted)}
+.hz-stats dd{margin-top:8px;font:400 22px 'JetBrains Mono',ui-monospace,Menlo,monospace;color:var(--hz-fg)}
+@media (max-width:640px){
+  .hz-detail{padding:20px 16px}
+  .hz-num{font-size:88px}
+  .hz-now{margin-top:30px;gap:18px}
+  .hz-advice{font-size:17px}
+  .hz-stats dd{font-size:19px}
+  .hz-title{font-size:34px}
+}
+.hz-legend{display:flex;flex-wrap:wrap;gap:12px 26px;margin-top:26px;padding:0;list-style:none;font:400 17px 'Inter',system-ui,sans-serif;color:#C9CDD2}
+.hz-legend li{display:inline-flex;align-items:center;gap:10px}
+.hz-legend i{width:14px;height:14px;border-radius:3px;background:var(--c)}
+.hz-note{margin-top:20px;font:400 15.5px/1.6 'Inter',system-ui,sans-serif;color:var(--hz-dim);max-width:62em}
+
+.foot{margin-top:56px;color:var(--muted);font-size:13px;max-width:72ch}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="page"><div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M3 14h18M5 18h14M8 21.5h8"/></svg></span>
+      <b>Haze Watch</b>
+      <span class="chip">Snapshot 10:00 SGT</span>
+    </div>
+    <div class="controls">
+      <nav class="seg" aria-label="View">
+        <button type="button" data-view="singapore" aria-pressed="true">Singapore</button>
+        <button type="button" data-view="asean" aria-pressed="false">ASEAN</button>
+      </nav>
+      <div class="seg sm" role="group" aria-label="Temperature unit">
+        <button type="button" data-unit="C" aria-pressed="true">°C</button>
+        <button type="button" data-unit="F" aria-pressed="false">°F</button>
+      </div>
+    </div>
+  </header>
+  <main id="app"></main>
+  <p class="foot">Haze readings (PSI, PM2.5 and PM10) come from the National Environment Agency through data.gov.sg and cover Singapore only. Weather for every city comes from Open-Meteo. Both are snapshots taken at 10:00 SGT on 1 November 2026 and change only when the page is republished. Haze bands follow Singapore's PSI ranges.</p>
+</div></div>
+
+<script>
+(function(){
+'use strict';
+
+var DATE_LABEL = 'Sunday 1 November 2026';
+
+/* ---------- NEA data via data.gov.sg (Singapore only), real-time PSI endpoint ---------- */
+var NEA = {
+  ts:  '2026-11-01T10:00:00+08:00',
+  upd: '2026-11-01T10:00:57+08:00',
+  psi:  {north:70, south:73, west:87, east:69, central:74},
+  pm25: {north:29, south:31, west:44, east:28, central:33},
+  pm10: {north:50, south:41, west:63, east:50, central:49},
+  sub: {
+    pm25: {north:70, south:73, west:87, east:69, central:74},
+    pm10: {north:50, south:41, west:57, east:50, central:49},
+    o3:   {north:5,  south:6,  west:4,  east:6,  central:4},
+    co:   {north:10, south:10, west:8,  east:9,  central:13},
+    so2:  {north:4,  south:2,  west:3,  east:3,  central:1}
+  }
+};
+var NEA_TIME = NEA.ts.slice(11,16);
+var NEA_UPD  = NEA.upd.slice(11,16);
+
+var BANDS = [
+  {max:50,  name:'Good',           v:'--hz-good', advice:'Air is clean. Enjoy normal outdoor activity.'},
+  {max:100, name:'Moderate',       v:'--hz-mod',  advice:'Air is acceptable. Normal activity is fine; unusually sensitive people may notice mild irritation.'},
+  {max:200, name:'Unhealthy',      v:'--hz-unh',  advice:'Cut back on prolonged or heavy exertion outdoors. Children, older adults and people with heart or lung conditions should stay indoors where they can.'},
+  {max:300, name:'Very unhealthy', v:'--hz-vun',  advice:'Avoid outdoor activity. Wear an N95 mask if you need to go out, and keep windows closed.'},
+  {max:Infinity, name:'Hazardous',  v:'--hz-haz',  advice:'Stay indoors with windows closed and avoid all outdoor activity.'}
+];
+var TICKS = ['50','100','200','300','300+'];
+function bandIndex(v){ for (var i=0;i<BANDS.length;i++){ if (v<=BANDS[i].max) return i; } return 4; }
+function bandOf(v){ return BANDS[bandIndex(v)]; }
+
+/* map geometry in an 814 x 556 box; label positions are percentages of that box */
+var REGIONS = [
+  {id:'north',   name:'North',   areas:'Woodlands, Yishun, Sembawang',     x:50.98, y:20.86, rect:[295,0,258,196]},
+  {id:'west',    name:'West',    areas:'Jurong, Tuas, Boon Lay',           x:22.11, y:47.21, rect:[0,0,295,556]},
+  {id:'central', name:'Central', areas:'Toa Payoh, Bishan, Orchard',       x:50.00, y:45.77, rect:[295,196,258,130]},
+  {id:'east',    name:'East',    areas:'Changi, Tampines, Pasir Ris',      x:78.01, y:47.21, rect:[553,0,261,556]},
+  {id:'south',   name:'South',   areas:'Marina Bay, Sentosa, Bukit Merah', x:50.98, y:87.86, rect:[295,326,258,230]}
+];
+function regionById(id){ for (var i=0;i<REGIONS.length;i++){ if (REGIONS[i].id===id) return REGIONS[i]; } return REGIONS[2]; }
+function mainPollutant(id){
+  var c = [['PM2.5',NEA.sub.pm25[id]],['PM10',NEA.sub.pm10[id]],['O3',NEA.sub.o3[id]],['CO',NEA.sub.co[id]],['SO2',NEA.sub.so2[id]]];
+  return c.reduce(function(a,b){ return b[1]>a[1]?b:a; })[0];
+}
+
+var ISLE = 'M62 330L69 288L92 255L142 183L223 95L259 93L295 97L394 55L452 95L487 118L553 142L593 154L629 211L671 186L713 223L747 251L739 303L697 320L607 325L553 326L495 341L472 353L447 375L414 383L347 393L295 389L237 385L177 378L125 383L85 396L72 363Z';
+var SENTOSA = '377,410 407,404 447,406 464,415 427,428 387,429';
+
+/* ---------- Open-Meteo weather (every city), forecast endpoint ---------- */
+var WMO = {
+  0:['Clear sky','sun'],1:['Mainly clear','sun'],2:['Partly cloudy','partly'],3:['Overcast','cloud'],
+  45:['Fog','haze'],48:['Rime fog','haze'],
+  51:['Light drizzle','rain'],53:['Drizzle','rain'],55:['Heavy drizzle','rain'],56:['Freezing drizzle','rain'],57:['Freezing drizzle','rain'],
+  61:['Light rain','rain'],63:['Rain','rain'],65:['Heavy rain','rain'],66:['Freezing rain','rain'],67:['Freezing rain','rain'],
+  80:['Light rain showers','rain'],81:['Rain showers','rain'],82:['Heavy rain showers','rain'],
+  95:['Thunderstorm','storm'],96:['Thunderstorm with hail','storm'],99:['Thunderstorm with hail','storm']
+};
+function wmo(c){ return WMO[c] || ['Unsettled','cloud']; }
+var DAYS = [{d:'Today',date:'1 Nov'},{d:'Mon',date:'2 Nov'},{d:'Tue',date:'3 Nov'},{d:'Wed',date:'4 Nov'}];
+
+var CITIES = [
+  {id:'singapore', name:'Singapore', country:'Singapore', time:'10:00 SGT',
+   cur:{t:29.8,f:34.3,h:69,c:51,w:8.6,d:68,p:1012.2,v:8560},
+   day:{hi:[32.9,31.3,30.7,29.6],lo:[25.1,25.3,25.0,23.8],c:[51,53,80,81],r:[94,100,100,96],uv:[8.9,8.9,8.9,8.9]}},
+  {id:'jakarta', name:'Jakarta', country:'Indonesia', time:'09:00 local',
+   cur:{t:30.6,f:36.5,h:66,c:3,w:2.8,d:162,p:1012.8,v:12080},
+   day:{hi:[32.9,32.5,33.5,33.5],lo:[25.5,24.8,25.4,24.9],c:[80,80,51,80],r:[96,100,92,96],uv:[9.35,8.9,8.75,8.75]}},
+  {id:'kuala-lumpur', name:'Kuala Lumpur', country:'Malaysia', time:'10:00 local',
+   cur:{t:30.2,f:36.3,h:69,c:0,w:1.3,d:56,p:1008.0,v:20580},
+   day:{hi:[33.4,30.9,32.2,31.2],lo:[24.0,24.2,23.7,23.4],c:[53,81,81,95],r:[100,100,100,98],uv:[8.55,8.75,8.7,8.75]}},
+  {id:'manila', name:'Manila', country:'Philippines', time:'10:00 local',
+   cur:{t:31.5,f:36.6,h:58,c:2,w:4.8,d:65,p:1013.9,v:15540},
+   day:{hi:[32.8,34.0,35.1,34.2],lo:[26.5,26.5,27.1,26.2],c:[53,51,53,53],r:[95,63,58,75],uv:[5.75,7.75,7.8,7.1]}},
+  {id:'bangkok', name:'Bangkok', country:'Thailand', time:'09:00 local',
+   cur:{t:28.3,f:33.9,h:78,c:3,w:3.6,d:342,p:1015.1,v:18780},
+   day:{hi:[33.8,32.9,33.2,31.9],lo:[24.8,24.9,25.0,25.6],c:[95,51,53,80],r:[86,88,77,82],uv:[4.75,7.75,7.75,7.7]}},
+  {id:'hanoi', name:'Hanoi', country:'Vietnam', time:'09:00 local',
+   cur:{t:28.6,f:31.8,h:74,c:0,w:18.0,d:169,p:1012.7,v:13600},
+   day:{hi:[32.0,29.2,29.7,31.3],lo:[25.6,24.0,23.5,24.1],c:[51,95,53,51],r:[16,96,63,37],uv:[4.4,6.6,5.8,5.95]}},
+  {id:'ho-chi-minh-city', name:'Ho Chi Minh City', country:'Vietnam', time:'09:00 local',
+   cur:{t:29.3,f:34.3,h:72,c:3,w:6.4,d:27,p:1014.7,v:18760},
+   day:{hi:[33.7,33.2,31.7,32.7],lo:[24.7,23.9,24.7,24.8],c:[51,53,95,95],r:[35,100,96,92],uv:[7.6,8.2,7.8,8.1]}},
+  {id:'phnom-penh', name:'Phnom Penh', country:'Cambodia', time:'09:00 local',
+   cur:{t:29.2,f:35.1,h:74,c:1,w:2.9,d:83,p:1013.9,v:11220},
+   day:{hi:[32.6,32.4,31.6,31.8],lo:[25.4,24.6,25.0,25.0],c:[80,53,95,95],r:[67,61,94,80],uv:[8.05,8.05,6.1,7.4]}},
+  {id:'vientiane', name:'Vientiane', country:'Laos', time:'09:00 local',
+   cur:{t:29.5,f:34.5,h:71,c:0,w:6.0,d:136,p:996.8,v:17500},
+   day:{hi:[32.3,31.1,31.4,31.5],lo:[25.9,25.6,24.3,24.8],c:[51,95,51,51],r:[41,53,37,20],uv:[7.05,7.05,7.05,7.0]}},
+  {id:'yangon', name:'Yangon', country:'Myanmar', time:'08:30 local',
+   cur:{t:29.7,f:35.5,h:73,c:1,w:3.7,d:113,p:1015.1,v:21060},
+   day:{hi:[35.6,34.6,34.1,34.3],lo:[26.2,26.4,25.2,24.7],c:[51,95,51,51],r:[55,80,71,53],uv:[7.5,7.45,6.6,6.7]}},
+  {id:'bandar-seri-begawan', name:'Bandar Seri Begawan', country:'Brunei', time:'10:00 local',
+   cur:{t:27.4,f:33.5,h:83,c:3,w:4.4,d:238,p:1014.3,v:32140},
+   day:{hi:[30.2,31.2,32.4,32.2],lo:[23.2,23.9,23.8,24.1],c:[80,51,55,95],r:[100,59,96,67],uv:[8.35,8.05,8.55,8.1]}},
+  {id:'dili', name:'Dili', country:'Timor-Leste', time:'11:00 local',
+   cur:{t:31.3,f:39.1,h:71,c:2,w:9.6,d:347,p:1014.3,v:36340},
+   day:{hi:[31.6,31.9,32.2,32.8],lo:[23.5,24.1,23.8,24.3],c:[51,45,2,3],r:[10,10,4,2],uv:[9.7,9.7,9.65,9.7]}}
+];
+function cityById(id){ for (var i=0;i<CITIES.length;i++){ if (CITIES[i].id===id) return CITIES[i]; } return CITIES[0]; }
+
+/* ---------- helpers ---------- */
+var ICONS = {
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  partly:'<circle cx="8" cy="8" r="3"/><path d="M8 2v1M2 8h1M3.8 3.8l.7.7M12.2 3.8l-.7.7M3.8 12.2l.7-.7"/><path d="M18 20H9.5a4 4 0 1 1 .8-7.9A5 5 0 0 1 20 14.5a2.9 2.9 0 0 1-2 5.5z"/>',
+  cloud:'<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>',
+  rain:'<path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/><path d="M8 13v8M12 15v8M16 13v8"/>',
+  storm:'<path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"/><path d="M13 11l-4 6h6l-4 6"/>',
+  haze:'<circle cx="12" cy="8" r="3.5"/><path d="M3 14h18M5 18h14M8 21.5h8"/>'
+};
+function icon(k, s){
+  s = s || 24;
+  return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+ICONS[k]+'</svg>';
+}
+var state = {view:'singapore', region:'central', city:'jakarta', unit:'C', sort:'temp'};
+function t(c){ return Math.round(state.unit==='C' ? c : c*9/5+32) + '°'; }
+function compass(d){ return ['N','NE','E','SE','S','SW','W','NW'][Math.round(d/45)%8]; }
+function uvLabel(u){ u=Math.round(u); return u<=2?'Low':u<=5?'Moderate':u<=7?'High':u<=10?'Very high':'Extreme'; }
+function visText(m){ var k = m/1000; return (k>=10 ? Math.round(k) : k.toFixed(1)); }
+
+/* ---------- NEA haze section ---------- */
+function hazeSection(){
+  var sel = regionById(state.region);
+  var v = NEA.psi[sel.id], bi = bandIndex(v), b = BANDS[bi];
+  var rects = REGIONS.map(function(r){
+    var bb = bandOf(NEA.psi[r.id]);
+    return '<rect class="hz-reg" data-region="'+r.id+'" x="'+r.rect[0]+'" y="'+r.rect[1]+'" width="'+r.rect[2]+'" height="'+r.rect[3]+'" style="--c:var('+bb.v+')"/>';
+  }).join('');
+  var south = bandOf(NEA.psi.south);
+  var svg = '<svg class="hz-svg" viewBox="0 0 814 556" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'+
+    '<defs><clipPath id="hz-isle"><path d="'+ISLE+'"/></clipPath></defs>'+
+    '<g clip-path="url(#hz-isle)">'+rects+'<path class="hz-div" d="M295 97V389M553 142V326M295 196H553M295 326H553"/></g>'+
+    '<polygon points="'+SENTOSA+'" style="fill:color-mix(in srgb,var('+south.v+') 42%,var(--hz-inner))"/>'+
+    '<line x1="414" y1="367" x2="414" y2="447" stroke="#6B7078" stroke-width="1.5" stroke-dasharray="2 4" stroke-linecap="round"/>'+
+    '<circle cx="414" cy="367" r="4.5" fill="#9AA0A6"/></svg>';
+  var labels = REGIONS.map(function(r){
+    var rv = NEA.psi[r.id], rb = bandOf(rv), on = r.id===sel.id;
+    return '<button type="button" class="hz-label'+(on?' on':'')+'" data-region="'+r.id+'" data-fid="hz-'+r.id+'" aria-pressed="'+on+'" style="--x:'+r.x+';--y:'+r.y+';--c:var('+rb.v+')" aria-label="'+r.name+' area, PSI '+rv+', '+rb.name+'">'+
+      '<span class="hz-ln">'+r.name+'</span><span class="hz-lv">'+rv+'</span><span class="hz-lb">'+rb.name+'</span></button>';
+  }).join('');
+  var map = '<div class="hz-map">'+svg+
+    '<span class="hz-geo" style="left:50%;top:5%;transform:translateX(-50%)">Johor, Malaysia</span>'+
+    '<span class="hz-geo" style="left:2.1%;bottom:4%">Singapore Strait</span>'+
+    labels+'</div>';
+  var bar = BANDS.map(function(bb,i){ return '<span class="hz-seg'+(i===bi?' on':'')+'" style="--c:var('+bb.v+')"></span>'; }).join('');
+  var ticks = TICKS.map(function(x){ return '<span>'+x+'</span>'; }).join('');
+  var detail = '<div class="hz-detail" aria-live="polite">'+
+    '<div class="hz-area">'+sel.name+' · e.g. '+sel.areas+'</div>'+
+    '<div class="hz-now"><div class="hz-num">'+v+'</div><div class="hz-status" style="--c:var('+b.v+')"><i></i>'+b.name+'</div></div>'+
+    '<div class="hz-bar" role="img" aria-label="PSI '+v+', '+b.name+', on a five band scale">'+bar+'</div>'+
+    '<div class="hz-ticks">'+ticks+'</div>'+
+    '<p class="hz-advice">'+b.advice+'</p>'+
+    '<dl class="hz-stats">'+
+      '<div><dt>PM2.5, 24 h</dt><dd>'+NEA.pm25[sel.id]+' µg/m³</dd></div>'+
+      '<div><dt>PM10, 24 h</dt><dd>'+NEA.pm10[sel.id]+' µg/m³</dd></div>'+
+      '<div><dt>Main pollutant</dt><dd>'+mainPollutant(sel.id)+'</dd></div>'+
+    '</dl></div>';
+  var legend = BANDS.map(function(bb,i){
+    var lo = i===0 ? 0 : BANDS[i-1].max+1;
+    var rng = bb.max===Infinity ? lo+'+' : lo+'–'+bb.max;
+    return '<li style="--c:var('+bb.v+')"><i></i>'+bb.name+' '+rng+'</li>';
+  }).join('');
+  return '<section class="haze" aria-label="Singapore PSI by area">'+
+    '<div class="hz-eyebrow">Singapore · NEA 24-hour PSI</div>'+
+    '<h2 class="hz-title">PSI by area</h2>'+
+    '<div class="hz-grid">'+map+detail+'</div>'+
+    '<ul class="hz-legend">'+legend+'</ul>'+
+    '<p class="hz-note">Reading for '+NEA_TIME+' SGT, updated '+NEA_UPD+'. Area boundaries are approximate. PSI is a 24-hour measure and NEA updates it every hour. Tap an area for details.</p>'+
+  '</section>';
+}
+
+/* ---------- weather cards ---------- */
+function weather(c){
+  var w = wmo(c.cur.c);
+  return '<section class="card" aria-label="Weather in '+c.name+'">'+
+    '<div class="eyebrow">Weather now · '+c.time+'</div>'+
+    '<div class="wx-main"><span class="wx-icon">'+icon(w[1],52)+'</span>'+
+    '<div class="wx-temp">'+t(c.cur.t)+'<small>'+state.unit+'</small></div>'+
+    '<div class="wx-text"><b>'+w[0]+'</b><span>Feels like '+t(c.cur.f)+'</span></div></div>'+
+    '<dl class="stats">'+
+      '<div><dt>Humidity</dt><dd>'+c.cur.h+'%</dd></div>'+
+      '<div><dt>Wind</dt><dd>'+Math.round(c.cur.w)+' <small>km/h '+compass(c.cur.d)+'</small></dd></div>'+
+      '<div><dt>Rain chance</dt><dd>'+c.day.r[0]+'%</dd></div>'+
+      '<div><dt>UV index</dt><dd>'+Math.round(c.day.uv[0])+' <small>'+uvLabel(c.day.uv[0])+'</small></dd></div>'+
+      '<div><dt>Visibility</dt><dd>'+visText(c.cur.v)+' <small>km</small></dd></div>'+
+      '<div><dt>Pressure</dt><dd>'+Math.round(c.cur.p)+' <small>hPa</small></dd></div>'+
+    '</dl></section>';
+}
+function outlook(c){
+  return '<section class="card"><div class="eyebrow">Next 4 days</div><h2 class="card-title">'+c.name+' outlook</h2>'+
+    '<div class="fcs">'+DAYS.map(function(d,i){
+      var w = wmo(c.day.c[i]);
+      return '<div class="fc"><div class="fc-day"><b>'+d.d+'</b><span>'+d.date+'</span></div>'+
+        '<span class="fc-ic">'+icon(w[1],28)+'</span>'+
+        '<div class="fc-t">'+t(c.day.hi[i])+' <span>/ '+t(c.day.lo[i])+'</span></div>'+
+        '<div class="fc-w">'+w[0]+' · '+c.day.r[i]+'% rain</div></div>';
+    }).join('')+'</div></section>';
+}
+
+/* ---------- views ---------- */
+function viewSG(){
+  var sg = cityById('singapore');
+  return '<div class="page-head"><h1>Singapore</h1><p class="sub">'+DATE_LABEL+' · haze from NEA, weather from Open-Meteo</p></div>'+
+    hazeSection()+
+    '<div class="grid g-2 sp">'+weather(sg)+outlook(sg)+'</div>';
+}
+function sortedCities(){
+  var a = CITIES.slice();
+  if (state.sort==='temp') a.sort(function(x,y){return y.cur.t-x.cur.t;});
+  else if (state.sort==='rain') a.sort(function(x,y){return y.day.r[0]-x.day.r[0];});
+  else a.sort(function(x,y){return x.name.localeCompare(y.name);});
+  return a;
+}
+function cityCard(c){
+  var w = wmo(c.cur.c);
+  return '<button type="button" class="ccard" data-city="'+c.id+'" data-fid="city-'+c.id+'" aria-pressed="'+(c.id===state.city)+'">'+
+    '<div class="cc-top"><div><div class="cc-name">'+c.name+'</div><div class="cc-country">'+c.country+'</div></div><span class="cc-ic">'+icon(w[1],26)+'</span></div>'+
+    '<div class="cc-mid"><span class="cc-num">'+t(c.cur.t)+'</span><span class="cc-text">'+w[0]+'</span></div>'+
+    '<div class="cc-foot"><span><b>'+c.cur.h+'%</b> humidity</span><span><b>'+c.day.r[0]+'%</b> rain</span><span><b>'+Math.round(c.cur.w)+'</b> km/h</span></div></button>';
+}
+function pick(fn){ return CITIES.reduce(function(a,b){ return fn(b)>fn(a)?b:a; }); }
+function viewAsean(){
+  var c = cityById(state.city);
+  var warm = pick(function(x){return x.cur.t;});
+  var humid = pick(function(x){return x.cur.h;});
+  var uv = pick(function(x){return x.day.uv[0];});
+  var sortBtn = function(k,label){ return '<button type="button" data-sort="'+k+'" data-fid="sort-'+k+'" aria-pressed="'+(state.sort===k)+'">'+label+'</button>'; };
+  return '<div class="page-head"><h1>ASEAN cities</h1><p class="sub">Weather across '+CITIES.length+' cities · '+DATE_LABEL+'. NEA publishes haze readings for Singapore only, so they appear on the Singapore tab.</p></div>'+
+    '<section class="card" aria-label="Regional summary"><div class="summary">'+
+      '<div><div class="eyebrow">Warmest now</div><div class="sum-city">'+warm.name+'</div><span class="muted">'+t(warm.cur.t)+' '+state.unit+'</span></div>'+
+      '<div><div class="eyebrow">Most humid</div><div class="sum-city">'+humid.name+'</div><span class="muted">'+humid.cur.h+'% humidity</span></div>'+
+      '<div><div class="eyebrow">Highest UV today</div><div class="sum-city">'+uv.name+'</div><span class="muted">UV '+Math.round(uv.day.uv[0])+', '+uvLabel(uv.day.uv[0]).toLowerCase()+'</span></div>'+
+    '</div></section>'+
+    '<div class="grid g-2 sp">'+weather(c)+outlook(c)+'</div>'+
+    '<div class="row-head"><div><h2 class="sec">All cities</h2><p>Select a city to load its detail above.</p></div>'+
+      '<div class="seg sm" role="group" aria-label="Sort cities">'+sortBtn('temp','Temperature')+sortBtn('rain','Rain chance')+sortBtn('name','A–Z')+'</div></div>'+
+    '<div class="cities">'+sortedCities().map(cityCard).join('')+'</div>';
+}
+
+/* ---------- render + events ---------- */
+function syncControls(){
+  Array.prototype.forEach.call(document.querySelectorAll('[data-view]'), function(b){ b.setAttribute('aria-pressed', String(b.dataset.view===state.view)); });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-unit]'), function(b){ b.setAttribute('aria-pressed', String(b.dataset.unit===state.unit)); });
+}
+function render(){
+  var ae = document.activeElement;
+  var fid = ae && ae.dataset ? ae.dataset.fid : null;
+  document.getElementById('app').innerHTML = state.view==='singapore' ? viewSG() : viewAsean();
+  syncControls();
+  if (fid){
+    var el = document.querySelector('[data-fid="'+fid+'"]');
+    if (el && el.focus) el.focus({preventScroll:true});
+  }
+}
+function readHash(){
+  var h = location.hash.slice(1);
+  if (h==='singapore' || h==='asean') state.view = h;
+}
+function activate(target){
+  var reg = target.closest('[data-region]');
+  if (reg){ state.region = reg.dataset.region; render(); return true; }
+  var city = target.closest('[data-city]');
+  if (city){ state.city = city.dataset.city; render(); return true; }
+  var sort = target.closest('[data-sort]');
+  if (sort){ state.sort = sort.dataset.sort; render(); return true; }
+  var unit = target.closest('[data-unit]');
+  if (unit){ state.unit = unit.dataset.unit; render(); return true; }
+  var view = target.closest('[data-view]');
+  if (view){
+    if (location.hash.slice(1) !== view.dataset.view) location.hash = view.dataset.view;
+    else { state.view = view.dataset.view; render(); }
+    return true;
+  }
+  return false;
+}
+document.addEventListener('click', function(e){ activate(e.target); });
+window.addEventListener('hashchange', function(){ readHash(); render(); window.scrollTo(0,0); });
+
+readHash();
+render();
+})();
+</script>
+</body>
+</html>
